@@ -71,7 +71,7 @@ Not yet supported.
 
 `http://magicmirror/Stripes?animation=animationname`
 
-###CURL Example
+### CURL Example
 
 ```bash
 curl -X GET "http://magicmirror/Stripes?animation=rainbow&cycles=20"
