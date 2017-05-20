@@ -1,0 +1,30 @@
+{
+  "name": "MMM-Stripes",
+  "version": "1.1.0",
+  "description": "MagicMirror module for controlling RGB stripes.",
+  "repository": {
+      "type": "git",
+      "url": "git+https://github.com/paviro/MMM-Stripes"
+    },
+  "keywords": [
+    "magic mirror",
+    "smart mirror",
+    "LED",
+    "module",
+    "rgb",
+    "neopixels"
+  ],
+  "scripts": {
+    "postinstall": "electron-rebuild -w keytar && npm rebuild"
+  },
+  "author": "Paul-Vincent Roll",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "latest",
+    "rpi-ws281x-native": "latest",
+    "color": "latest"
+  },
+  "devDependencies": {
+    "electron-rebuild": "^1.2.1"
+  }
+}
