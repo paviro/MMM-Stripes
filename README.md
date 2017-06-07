@@ -69,12 +69,17 @@ Not yet supported.
 
 ## API Endpoint
 
-`http://magicmirror/Stripes?animation=animationname`
+`http://yourmagicmirror/Stripes/animation?name=rainbow&cycles=100000`
+`http://yourmagicmirror/Stripes/animation/cancel`
+`http://yourmagicmirror/Stripes/set?color=blue`
+`http://yourmagicmirror/Stripes/set?color=rgb(25,200,200)`
+`http://yourmagicmirror/Stripes/set?r=25&g=200&b=200`
+`http://yourmagicmirror/Stripes/set?wheel=20`
 
 ### CURL Example
 
 ```bash
-curl -X GET "http://magicmirror/Stripes?animation=rainbow&cycles=20"
+curl -X GET "http://yourmagicmirror/Stripes/animation?name=rainbow"
 ```
 
 

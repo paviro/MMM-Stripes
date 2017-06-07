@@ -1,17 +1,8 @@
-/* global Module */
-
-/* Magic Mirror
- * Module: MMM-Stripes
- *
- * By Paul-Vincent Roll http://paulvincentroll.com
- * MIT Licensed.
- */
-
 Module.register('MMM-Stripes',{
 
     defaults: {
-        ledCount: 60,
-        type:  'ws281x',
+        ledCount:   64,
+        type:       'ws281x',
         gpio: 18
     },
 

@@ -12,64 +12,11 @@ const Color = require('color');
 const bodyParser = require('body-parser');
 
 module.exports = NodeHelper.create({
-     socketNotificationReceived: function (notification, payload) {
-            if (notification === 'INITIATE') {
-                this.config = payload;
-                try {
-                    console.info('[Stripes] Loading LEDs...');
-                    this.loadLEDs()
-                    console.log('[Stripes] LEDs appear to be working!');
-                } catch (err) {
-                    console.error('[Stripes] Unable to access GPIO (' + this.config.gpio + '), PWM not supported?', err.message);
-                    this.leds = null;
-                }
-
-            } else if (notification === 'SEQUENCE') {
-            }
-        },
-        
+    
     start: function () {
         console.log('[Stripes] Starting node_helper');
         this.animationStarted = false;
         this.webServer()
-    },
-    
-    webServer: function () {
-        this.expressApp.use(bodyParser.json());
-        this.expressApp.use(bodyParser.urlencoded({ extended: true }));
-
-        this.expressApp.get('/Stripes', (req, res) => {
-            if (typeof req.query.animation !== 'undefined'){
-                var cycles = Number(req.query.cycles) || 2;
-                var speed = Number(req.query.speed) || 10;
-                var animation = {func: null, param:{}};
-                switch (req.query.animation) {
-                    case 'rainbow': 
-                        animation.func = this.rainbow
-                        break;
-                    case 'fill': 
-                        animation.param.color = req.query.color ? String(req.query.color) : "#ffffff";
-                        animation.func = this.fill
-                        break;
-                }
-                if (animation.func){
-                    this.animate(animation.func, cycles, speed, animation.param, (state) => {
-                        if (state == true){
-                            res.status(200).send({code: 200, status: 'Animation started!'});
-                        } else {
-                            res.status(409).send({code: 409, status: 'Sorry, another animation is currently in progress...'});
-                        }
-                    });
-                } else {
-                    res.status(404).send({code: 404, status: 'Requested animation could not be found.'});
-                }
-        
-                
-            } else {
-                res.status(501).send({code: 501, status: 'Not sure what you want...'});
-            }
-            
-           })
     },
     
     loadLEDs: function () {
@@ -80,6 +27,7 @@ module.exports = NodeHelper.create({
         }
         // Turn Strip off:
         this.clearStrip();
+        this.loadedLEDs = true;
     },
     
     setStrip: function (color) {
@@ -139,7 +87,7 @@ module.exports = NodeHelper.create({
         }
     },
     
-    rainbow: function () {
+    rainbowAnimation: function () {
             for (var i = 0; i < this.config.ledCount; i++) {
                 var wheelpos = (i + this.currentAnimationStep) % 384;
                 this.setLED(i, this.colorwheel(wheelpos))
@@ -151,7 +99,7 @@ module.exports = NodeHelper.create({
             }
     },
     
-    fill: function () {
+    fillAnimation: function () {
             this.setLED(this.currentAnimationStep, Color(this.currentAnimationParam.color));
             this.renderStrip();
             this.currentAnimationStep += 1;
@@ -185,6 +133,100 @@ module.exports = NodeHelper.create({
             g = 0;
         }
         return new Color({r: r, g: g, b: b});
+    },
+    
+    socketNotificationReceived: function (notification, payload) {
+            if (notification === 'INITIATE') {
+                this.config = payload;
+                try {
+                    console.info('[Stripes] Loading LEDs...');
+                    this.loadLEDs()
+                    console.log('[Stripes] LEDs appear to be working!');
+                } catch (err) {
+                    console.error('[Stripes] Unable to access GPIO (' + this.config.gpio + '), PWM not supported?', err.message);
+                    this.leds = null;
+                }
+
+            } else if (notification === 'SEQUENCE') {
+            }
+        },
+    
+    webServer: function () {
+        
+        var notLoadedResponse = {code: 500, status: 'LEDs not loaded. Make sure to request the UI first.'}
+        this.expressApp.use(bodyParser.json());
+        this.expressApp.use(bodyParser.urlencoded({ extended: true }));
+        
+        this.expressApp.get('/Stripes', (req, res) => {
+            res.status(202).send({code: 202, status: 'Module successfully loaded.', endpoints: ["/Stripes/animation", "/Stripes/set"]});
+        });
+        
+        this.expressApp.get('/Stripes/set', (req, res) => {
+            if (!this.loadedLEDs){
+                res.status(500).send(notLoadedResponse);
+            } else {
+                if (req.query.r && req.query.g && req.query.b){
+                    var color = Color.rgb(Number(req.query.r), Number(req.query.g), Number(req.query.b));
+                } else if (req.query.color){
+                    var color = Color(req.query.color);                    
+                } else if (req.query.wheel){
+                    var color = this.colorwheel(Number(req.query.wheel));
+                }
+                if (color){
+                    this.setStrip(color);
+                    this.renderStrip();
+                    res.status(501).send({code: 200, color: color.object(), status: 'Color has been updated.'});
+                } else {
+                    res.status(501).send({code: 501, status: 'Please supply a color value.'});
+                }
+            }
+        });
+        
+        this.expressApp.get('/Stripes/animation', (req, res) => {
+            if (!this.loadedLEDs){
+                res.status(500).send(notLoadedResponse);
+            } else {
+                if (typeof req.query.name !== 'undefined'){
+                    var cycles = Number(req.query.cycles) || 2;
+                    var speed = Number(req.query.speed) || 10;
+                    var animation = {func: null, param:{}};
+                    switch (req.query.name) {
+                        case 'rainbow': 
+                            animation.func = this.rainbowAnimation;
+                            break;
+                        case 'fill':
+                            animation.param.color = req.query.color ? String(req.query.color) : "#ffffff";
+                            animation.func = this.fillAnimation;
+                            break;
+                    }
+                    if (animation.func){
+                        this.animate(animation.func, cycles, speed, animation.param, (state) => {
+                            if (state == true){
+                                res.status(200).send({code: 200, animation: req.query.name, status: 'Animation has been started.'});
+                            } else {
+                                res.status(409).send({code: 409, status: 'Sorry, another animation is currently in progress...'});
+                            }
+                        });
+                    } else {
+                        res.status(404).send({code: 404, status: 'Requested animation could not be found.'});
+                    }
+                    
+                } else {
+                    res.status(501).send({code: 501, status: 'Please supply an animation name.'});
+                }
+            }
+            
+           });
+        
+        this.expressApp.get('/Stripes/animation/cancel', (req, res) => {
+            if (this.animationStarted){
+                this.stop();
+                this.clearStrip();
+                res.status(202).send({code: 202, status: 'Requested animation cancellation.'});
+            } else {
+                res.status(501).send({code: 501, status: 'There is no active animation.'});
+            }
+        });
     }
 
 });
