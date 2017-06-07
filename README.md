@@ -60,21 +60,55 @@ modules: [
             <td><code>18</code></td>
             <td>The GPIO-Pin your strip is connected to. Must support PMW!</td>
         </tr>
+         <tr>
+                <td><code>animationSpeed</code></td>
+                <td>Integer</td>
+                <td><code>20</code></td>
+                <td>Animation speed.</td>
+        </tr>
+         <tr>
+                <td><code>animationCycles</code></td>
+                <td>Integer</td>
+                <td><code>2</code></td>
+                <td>Animation duration.</td>
+        </tr>
+         <tr>
+                <td><code>flashOnAlert</code></td>
+                <td>boolean</td>
+                <td><code>true</code></td>
+                <td>Trigger a pulse animation when a notification is shown.</td>
+        </tr>
+        <tr>
+            <td><code>flashColor</code></td>
+            <td>text</td>
+            <td><code>red</code></td>
+            <td>Color of the flash (blue, rgb(25,200,200), #F04B23).</td>
+        </tr>
+        <tr>
+            <td><code>flashCycles</code></td>
+            <td>Integer</td>
+            <td><code>2</code></td>
+            <td>Animation duration.</td>
+        </tr>
     </tbody>
 </table>
 
 
 ## Trigger from another module
-Not yet supported.
+Currently supports messages send for [MMM-PiLights](https://github.com/jc21/MMM-PiLights) and notifications shown in the default alert module.
+More will be added.
 
 ## API Endpoint
-
-`http://yourmagicmirror/Stripes/animation?name=rainbow&cycles=100000`
-`http://yourmagicmirror/Stripes/animation/cancel`
-`http://yourmagicmirror/Stripes/set?color=blue`
-`http://yourmagicmirror/Stripes/set?color=rgb(25,200,200)`
-`http://yourmagicmirror/Stripes/set?r=25&g=200&b=200`
-`http://yourmagicmirror/Stripes/set?wheel=20`
+```
+http://yourmagicmirror/Stripes/animation?name=rainbow&cycles=100000
+http://yourmagicmirror/Stripes/animation?name=fill&color=blue
+http://yourmagicmirror/Stripes/animation?name=pulse&color=red&cycles=4
+http://yourmagicmirror/Stripes/animation/cancel
+http://yourmagicmirror/Stripes/set?color=blue
+http://yourmagicmirror/Stripes/set?color=rgb(25,200,200)
+http://yourmagicmirror/Stripes/set?r=25&g=200&b=200
+http://yourmagicmirror/Stripes/set?wheel=20
+```
 
 ### CURL Example
 

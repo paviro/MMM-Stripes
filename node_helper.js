@@ -15,10 +15,13 @@ module.exports = NodeHelper.create({
     
     start: function () {
         console.log('[Stripes] Starting node_helper');
+        // Set active animations to false
         this.animationStarted = false;
+        // Start API Endpoints
         this.webServer()
     },
     
+    // This functions initialises the leds - more chipset implementations can be added here.
     loadLEDs: function () {
         if (this.config.type == 'ws281x') {
             this.leds = require("rpi-ws281x-native");
@@ -30,18 +33,18 @@ module.exports = NodeHelper.create({
         this.loadedLEDs = true;
     },
     
+    // This functions sets the color of the whole LED strip
     setStrip: function (color) {
         if (color instanceof Color){
-            if (this.config.type == 'ws281x') {
-                for (var i = 0; i < this.config.ledCount; i++) {
-                    this.pixelData[i] = color.hex().replace('#', '0x');
-                }
+            for (var i = 0; i < this.config.ledCount; i++) {
+                this.setLED(i, color);
             }
         } else {
             console.log('[Stripes] The color has to be an instance of Color!');
         }
     },
     
+    // This functions sets the color of a single LED - more chipset implementations can be added here.
     setLED: function (led, color) {
         if (color instanceof Color){
             if (this.config.type == 'ws281x') {
@@ -52,17 +55,20 @@ module.exports = NodeHelper.create({
         }
     },
     
+    // Function for setting RGB color to black -> OFF
     clearStrip: function () {
         this.setStrip(Color.rgb(0,0,0));
         this.renderStrip()
     },
     
+    // This function renders the current pixels on the connected strip - more chipset implementations can be added here.
     renderStrip: function () {
         if (this.config.type == 'ws281x') {
             this.leds.render(this.pixelData);
         }
     },
-
+    
+    // This function starts an animation after checking if there already is another one active
     animate: function (animation, cycles, speed, param = {}, callback=null) {
         if (this.animationStarted == false) {
             this.animationCycles = cycles;
@@ -77,6 +83,7 @@ module.exports = NodeHelper.create({
         }
     },
     
+    // Function for killing an active animation
     stop: function (clear) {
         if (this.animationStarted == true) {
             clearInterval(this.animationInterval);
@@ -87,6 +94,7 @@ module.exports = NodeHelper.create({
         }
     },
     
+    // Rainbow animation implementation
     rainbowAnimation: function () {
             for (var i = 0; i < this.config.ledCount; i++) {
                 var wheelpos = (i + this.currentAnimationStep) % 384;
@@ -99,12 +107,34 @@ module.exports = NodeHelper.create({
             }
     },
     
+    // Fill strip animation implementation
     fillAnimation: function () {
             this.setLED(this.currentAnimationStep, Color(this.currentAnimationParam.color));
             this.renderStrip();
             this.currentAnimationStep += 1;
             if ( (this.currentAnimationStep / this.config.ledCount) >= 1 ) {
                 this.stop(false)
+            }
+    },
+    
+    // Pulse animation implementation
+    pulseAnimation: function () {
+            var color = Color(this.currentAnimationParam.color);
+            var speed = 0.09
+            var newColorValues = Object()
+            
+            for (var i in color.object()) {
+                var cosParam = color.object()[i] / 2
+                var channelValue = (-cosParam * Math.cos(speed*this.currentAnimationStep) + cosParam);
+                newColorValues[i] = channelValue;
+            }
+            
+            this.setStrip(Color(newColorValues));
+            this.renderStrip()
+            
+            this.currentAnimationStep += 1;
+            if ( (this.currentAnimationStep / (2*Math.PI/speed)) >= this.animationCycles ) {
+                this.stop(true)
             }
     },
     
@@ -135,6 +165,7 @@ module.exports = NodeHelper.create({
         return new Color({r: r, g: g, b: b});
     },
     
+    // Messages from the UI
     socketNotificationReceived: function (notification, payload) {
             if (notification === 'INITIATE') {
                 this.config = payload;
@@ -147,10 +178,15 @@ module.exports = NodeHelper.create({
                     this.leds = null;
                 }
 
-            } else if (notification === 'SEQUENCE') {
+            } else if (notification === 'pulse') {
+                console.log(payload);
+                this.animate(this.pulseAnimation, this.config.animationCycles, this.config.animationSpeed, {color: payload});
+            } else if (notification === 'alert') {
+                this.animate(this.pulseAnimation, this.config.flashCycles, 20, {color: this.config.flashColor});
             }
         },
     
+    // API Endpoints
     webServer: function () {
         
         var notLoadedResponse = {code: 500, status: 'LEDs not loaded. Make sure to request the UI first.'}
@@ -187,8 +223,8 @@ module.exports = NodeHelper.create({
                 res.status(500).send(notLoadedResponse);
             } else {
                 if (typeof req.query.name !== 'undefined'){
-                    var cycles = Number(req.query.cycles) || 2;
-                    var speed = Number(req.query.speed) || 10;
+                    var cycles = Number(req.query.cycles) || this.config.animationCycles;
+                    var speed = Number(req.query.speed) || this.config.animationSpeed;
                     var animation = {func: null, param:{}};
                     switch (req.query.name) {
                         case 'rainbow': 
@@ -198,6 +234,9 @@ module.exports = NodeHelper.create({
                             animation.param.color = req.query.color ? String(req.query.color) : "#ffffff";
                             animation.func = this.fillAnimation;
                             break;
+                        case 'pulse':
+                            animation.param.color = req.query.color ? String(req.query.color) : "#ffffff";
+                            animation.func = this.pulseAnimation; 
                     }
                     if (animation.func){
                         this.animate(animation.func, cycles, speed, animation.param, (state) => {
